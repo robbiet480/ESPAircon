@@ -1,44 +1,184 @@
+// Get ESP8266 going with Arduino IDE
+// - https://github.com/esp8266/Arduino#installing-with-boards-manager
+// Required libraries (sketch -> include library -> manage libraries)
+// - PubSubClient by Nick 'O Leary
+// - IRemoteESP8266
+
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
+#include <PubSubClient.h>
 #include "DL_Aircon.h"
 #include <IRremoteESP8266.h>
 #include <ArduinoJson.h>
 
-#define MQTT_MAXBUFFERSIZE 250
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
-
-#define IR_PIN 14
-
-#define LED_GREEN 12
-#define LED_BLUE 13
-#define LED_RED 15
-#define BUTTON 4
-
 #include "config.h"
 
-IRsend irsend(IR_PIN); //an IR led is connected to GPIO pin 14
+#define MQTT_MAX_PACKET_SIZE 384
+
+IRsend irsend(IR_PIN);
+
 DynamicJsonBuffer  jsonBuffer;
 
 dl_aircon_msg_t msg;
-bool recv = false;
-unsigned long millis_last = 0;
 
-WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, mqtt_server, mqtt_port, mqtt_user, mqtt_pass);
+// Callback function header
+void callback(char* topic, byte* payload, unsigned int length);
 
-Adafruit_MQTT_Subscribe mq_aircon_set = Adafruit_MQTT_Subscribe(&mqtt, set_topic);
-Adafruit_MQTT_Publish mq_aircon_status = Adafruit_MQTT_Publish(&mqtt, state_topic);
+WiFiClient espClient;
+PubSubClient client(MQTT_SERVER, MQTT_PORT, callback, espClient);
+long lastMsg = 0;
 
-void MQTT_connect();
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  digitalWrite(LED_BLUE, HIGH);
+
+  payload[length] = '\0';
+  String str_payload = String((char*)payload);
+
+  String publishing_topic = "";
+  String publishing_payload = "";
+
+  if (String(topic) == String(JSON_SET_TOPIC)) {
+    JsonObject& root = jsonBuffer.parseObject((char*)payload);
+
+    if (!root.success()) {
+      Serial.println("parseObject() failed");
+      return;
+    }
+
+    if (root.containsKey("on")) msg.on = root["on"];
+
+    if (root.containsKey("oscillate")) msg.oscillate = root["oscillate"];
+
+    if (root.containsKey("speed")) {
+      if (root["speed"] == "eco") {
+        msg.speed = 0;
+      } else if (root["speed"] == "low") {
+        msg.speed = 1;
+      } else if (root["speed"] == "medium") {
+        msg.speed = 2;
+      } else if (root["speed"] == "high") {
+        msg.speed = 3;
+      }
+    }
+
+    if (root.containsKey("wind")) {
+      if (root["wind"] == "normal") {
+        msg.wind = 0;
+      } else if (root["wind"] == "natural") {
+        msg.wind = 1;
+      } else if (root["wind"] == "sleeping") {
+        msg.wind = 2;
+      }
+    }
+
+    if (root.containsKey("timer")) msg.timer = root["timer"];
+    if (root.containsKey("timer_value")) msg.timer_value = root["timer_value"];
+  } else if (String(topic) == String(ON_SET_TOPIC)) {
+    msg.on = (str_payload == "true");
+    publishing_topic = ON_STATE_TOPIC;
+    publishing_payload = (msg.on ? "true" : "false");
+  } else if (String(topic) == String(OSCILLATE_SET_TOPIC)) {
+    msg.oscillate = (str_payload == "true");
+    publishing_topic = OSCILLATE_STATE_TOPIC;
+    publishing_payload = (msg.oscillate ? "true" : "false");
+  } else if (String(topic) == String(SPEED_SET_TOPIC)) {
+    if (str_payload == "eco") {
+      msg.speed = 0;
+    } else if (str_payload == "low") {
+      msg.speed = 1;
+    } else if (str_payload == "medium") {
+      msg.speed = 2;
+    } else if (str_payload == "high") {
+      msg.speed = 3;
+    }
+    publishing_topic = SPEED_STATE_TOPIC;
+    publishing_payload = String(str_payload).c_str();
+  } else if (String(topic) == String(WIND_SET_TOPIC)) {
+    if (str_payload == "normal") {
+      msg.wind = 0;
+    } else if (str_payload == "natural") {
+      msg.wind = 1;
+    } else if (str_payload == "sleeping") {
+      msg.wind = 2;
+    }
+    publishing_topic = WIND_STATE_TOPIC;
+    publishing_payload = String(str_payload).c_str();
+  } else if (String(topic) == String(TIMER_SET_TOPIC)) {
+    msg.timer = (str_payload == "true");
+    publishing_topic = TIMER_STATE_TOPIC;
+    publishing_payload = (msg.timer ? "true" : "false");
+  } else if (String(topic) == String(TIMER_VALUE_SET_TOPIC)) {
+    msg.timer_value = str_payload.toFloat();
+    publishing_topic = TIMER_VALUE_STATE_TOPIC;
+    publishing_payload = String(msg.timer_value).c_str();
+  } else {
+    Serial.println("No topic matched!");
+  }
+
+  unsigned long data = dl_assemble_msg(&msg);
+  irsend.sendNEC(data, 32);
+
+  Serial.print("Will be publishing to topic ");
+  Serial.print(publishing_topic);
+  Serial.print(" with payload ");
+  Serial.println(publishing_payload);
+
+  if (publishing_topic != "" && publishing_payload != "") {
+    client.publish(publishing_topic.c_str(), publishing_payload.c_str(), true);
+  }
+
+  JsonObject& publish_root = jsonBuffer.createObject();
+
+  publish_root["on"] = msg.on;
+  publish_root["oscillate"] = msg.oscillate;
+
+  String human_speed = "";
+
+  if (msg.speed = 0) {
+    human_speed = "eco";
+  } else if (msg.speed = 1) {
+    human_speed = "low";
+  } else if (msg.speed = 2) {
+    human_speed = "medium";
+  } else if (msg.speed = 3) {
+    human_speed = "high";
+  }
+  publish_root["speed"] = human_speed;
+
+  String human_wind = "";
+
+  if (msg.wind = 0) {
+    human_wind = "normal";
+  } else if (msg.wind = 1) {
+    human_wind = "natural";
+  } else if (msg.wind = 2) {
+    human_wind = "sleeping";
+  }
+
+  publish_root["wind"] = human_wind;
+  publish_root["timer"] = msg.timer;
+  publish_root["timer_value"] = msg.timer_value;
+
+  //char buf[publish_root.measureLength()];
+  char buf[250];
+  publish_root.printTo(buf, 250);
+
+  client.publish(JSON_STATE_TOPIC, buf, true);
+  digitalWrite(LED_BLUE, LOW);
+}
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(112500);
+  irsend.begin();
+  Serial.begin(115200);
   Serial.println("Booting");
-
-  WiFi.begin(wifi_ssid, wifi_password);
-  Serial.println("");
+  setup_wifi();
 
   pinMode(IR_PIN, OUTPUT);
 
@@ -46,21 +186,27 @@ void setup() {
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
 
-  pinMode(BUTTON, INPUT_PULLUP);
-
-  pinMode(2, OUTPUT);
-  digitalWrite(2, HIGH);
-
-  //Default settings
-  irsend.begin();
   msg.on = false;
   msg.oscillate = false;
   msg.timer = false;
-  msg.timer_value = 1;
+  msg.timer_value = 0.5;
   msg.speed = 2;
-  msg.wind = 2;
+  msg.wind = 0;
 
-  // Wait for connection
+  digitalWrite(LED_GREEN, HIGH);
+  delay(100);
+  digitalWrite(LED_GREEN, LOW);
+}
+
+void setup_wifi() {
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(WIFI_SSID);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
   while (WiFi.status() != WL_CONNECTED) {
     digitalWrite(LED_RED, HIGH);
     delay(100);
@@ -70,101 +216,46 @@ void setup() {
   }
 
   Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(wifi_ssid);
-  Serial.print("IP address: ");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+}
 
-  mqtt.subscribe(&mq_aircon_set);
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    Serial.print("state=");
+    Serial.println(client.state());
 
-  Serial.println("Go!");
-
-  digitalWrite(LED_GREEN, HIGH);
-  delay(100);
-  digitalWrite(LED_GREEN, LOW);
+    // Attempt to connect
+    if (client.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, ALIVE_TOPIC, 0, 1, "dead")) {
+      Serial.println("connected");
+      Serial.print("state=");
+      Serial.println(client.state());
+      client.publish(ALIVE_TOPIC, "alive", true);
+      client.subscribe(JSON_SET_TOPIC);
+      client.subscribe(ON_SET_TOPIC);
+      client.subscribe(OSCILLATE_SET_TOPIC);
+      client.subscribe(SPEED_SET_TOPIC);
+      client.subscribe(WIND_SET_TOPIC);
+      client.subscribe(TIMER_SET_TOPIC);
+      client.subscribe(TIMER_VALUE_SET_TOPIC);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
 
 void loop() {
-
-  if (millis() - millis_last > 500){
-    MQTT_connect();
-
-    Adafruit_MQTT_Subscribe *subscription;
-    while ((subscription = mqtt.readSubscription(500))) {
-      if (subscription == &mq_aircon_set) {
-        digitalWrite(LED_BLUE, HIGH);
-        Serial.println("Got MQTT");
-        JsonObject& root = jsonBuffer.parseObject((char*)mq_aircon_set.lastread);
-
-        if (!root.success()) {
-          Serial.println("parseObject() failed");
-          return;
-        }
-
-        if (root.containsKey("on")) msg.on = root["on"];
-
-        if (root.containsKey("oscillate")) msg.oscillate = root["oscillate"];
-
-        if (root.containsKey("speed")) msg.speed = root["speed"];
-        if (root.containsKey("wind")) msg.wind = root["wind"];
-
-        if (root.containsKey("timer")) msg.timer = root["timer"];
-        if (root.containsKey("timer_value")) msg.timer_value = root["timer_value"];
-
-        unsigned long data = dl_assemble_msg(&msg);
-        irsend.sendNEC(data, 32);
-        recv = true;
-      }
-    }
-
-    millis_last = millis();
+  if (!client.connected()) {
+    Serial.println("Disconnected, starting reconnection!");
+    reconnect();
   }
-
-  if (recv){
-    Serial.println("Answer");
-    JsonObject& root = jsonBuffer.createObject();
-
-    root["on"] = msg.on;
-    root["oscillate"] = msg.oscillate;
-    root["speed"] = msg.speed;
-    root["wind"] = msg.wind;
-    root["timer"] = msg.timer;
-    root["timer_value"] = msg.timer_value;
-
-    //char buf[root.measureLength()];
-    char buf[250];
-    root.printTo(buf, 250);
-
-    mq_aircon_status.publish(buf);
-    recv = false;
-    digitalWrite(LED_BLUE, LOW);
-  }
-
-  yield();
-}
-
-void MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return;
-  }
-
-  Serial.print("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
-  }
-  Serial.println("MQTT Connected!");
+  client.loop();
 }
 

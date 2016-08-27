@@ -7,7 +7,7 @@ typedef struct {
   bool on;
   bool oscillate;
   bool timer;
-  int timer_value;
+  float timer_value;
   int speed;
   int wind;
 } dl_aircon_msg_t;

@@ -1,11 +1,30 @@
-#define wifi_ssid ""
-#define wifi_password ""
+#define WIFI_SSID                ""
+#define WIFI_PASSWORD            ""
 
-#define mqtt_server ""
-#define mqtt_port   1883
-#define mqtt_user   ""
-#define mqtt_pass   ""
+#define MQTT_SERVER              "192.168.1.2"
+#define MQTT_PORT                1883
+#define MQTT_USER                ""
+#define MQTT_PASS                ""
+#define MQTT_CLIENT_ID           "ESP8266Client"
 
-#define set_topic ""
-#define state_topic ""
+#define ALIVE_TOPIC              "esp8266/ac/status"
+#define JSON_SET_TOPIC           "esp8266/ac/json/set"
+#define JSON_STATE_TOPIC         "esp8266/ac/json/state"
+#define ON_SET_TOPIC             "esp8266/ac/on/set"
+#define ON_STATE_TOPIC           "esp8266/ac/on/state"
+#define OSCILLATE_SET_TOPIC      "esp8266/ac/oscillate/set"
+#define OSCILLATE_STATE_TOPIC    "esp8266/ac/oscillate/state"
+#define SPEED_SET_TOPIC          "esp8266/ac/speed/set"
+#define SPEED_STATE_TOPIC        "esp8266/ac/speed/state"
+#define WIND_SET_TOPIC           "esp8266/ac/wind/set"
+#define WIND_STATE_TOPIC         "esp8266/ac/wind/state"
+#define TIMER_SET_TOPIC          "esp8266/ac/timer/set"
+#define TIMER_STATE_TOPIC        "esp8266/ac/timer/state"
+#define TIMER_VALUE_SET_TOPIC    "esp8266/ac/timer_value/set"
+#define TIMER_VALUE_STATE_TOPIC  "esp8266/ac/timer_value/state"
 
+#define IR_PIN 14
+
+#define LED_GREEN 12
+#define LED_BLUE 13
+#define LED_RED 15
