@@ -52,9 +52,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
-    if (root.containsKey("on")) msg.on = root["on"];
+    if (root.containsKey("on")) {
+      msg.on = root["on"];
+      client.publish(ON_STATE_TOPIC, root["on"]);
+    }
 
-    if (root.containsKey("oscillate")) msg.oscillate = root["oscillate"];
+    if (root.containsKey("oscillate")) {
+      msg.oscillate = root["oscillate"];
+      client.publish(OSCILLATE_STATE_TOPIC, root["oscillate"]);
+    }
 
     if (root.containsKey("speed")) {
       if (root["speed"] == "eco") {
@@ -66,6 +72,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       } else if (root["speed"] == "high") {
         msg.speed = 3;
       }
+      client.publish(SPEED_STATE_TOPIC, root["speed"]);
     }
 
     if (root.containsKey("wind")) {
@@ -76,10 +83,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
       } else if (root["wind"] == "sleeping") {
         msg.wind = 2;
       }
+      client.publish(WIND_STATE_TOPIC, root["wind"]);
     }
 
-    if (root.containsKey("timer")) msg.timer = root["timer"];
-    if (root.containsKey("timer_value")) msg.timer_value = root["timer_value"];
+    if (root.containsKey("timer")) {
+      msg.timer = root["timer"];
+      client.publish(TIMER_STATE_TOPIC, root["timer"]);
+    }
+    if (root.containsKey("timer_value")) {
+      msg.timer_value = root["timer_value"];
+      client.publish(TIMER_VALUE_STATE_TOPIC, root["timer_value"]);
+    }
   } else if (String(topic) == String(ON_SET_TOPIC)) {
     msg.on = (str_payload == "true");
     publishing_topic = ON_STATE_TOPIC;
@@ -125,12 +139,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   unsigned long data = dl_assemble_msg(&msg);
   irsend.sendNEC(data, 32);
 
-  Serial.print("Will be publishing to topic ");
-  Serial.print(publishing_topic);
-  Serial.print(" with payload ");
-  Serial.println(publishing_payload);
-
   if (publishing_topic != "" && publishing_payload != "") {
+    Serial.print("Will be publishing to topic ");
+    Serial.print(publishing_topic);
+    Serial.print(" with payload ");
+    Serial.println(publishing_payload);
+
     client.publish(publishing_topic.c_str(), publishing_payload.c_str(), true);
   }
 
@@ -258,4 +272,3 @@ void loop() {
   }
   client.loop();
 }
-
