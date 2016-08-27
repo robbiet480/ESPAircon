@@ -25,7 +25,7 @@ bool recv = false;
 unsigned long millis_last = 0;
 
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, mqtt_server, mqtt_port, mqtt_user, "");
+Adafruit_MQTT_Client mqtt(&client, mqtt_server, mqtt_port, mqtt_user, mqtt_pass);
 
 Adafruit_MQTT_Subscribe mq_aircon_set = Adafruit_MQTT_Subscribe(&mqtt, set_topic);
 Adafruit_MQTT_Publish mq_aircon_status = Adafruit_MQTT_Publish(&mqtt, state_topic);
@@ -167,3 +167,4 @@ void MQTT_connect() {
   }
   Serial.println("MQTT Connected!");
 }
+

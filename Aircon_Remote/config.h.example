@@ -1,9 +1,11 @@
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#define wifi_ssid ""
+#define wifi_password ""
 
-#define MQTT_SERVER ""
-#define MQTT_PORT   1883
-#define MQTT_USER   ""
+#define mqtt_server ""
+#define mqtt_port   1883
+#define mqtt_user   ""
+#define mqtt_pass   ""
 
-#define SET_TOPIC ""
-#define STATE_TOPIC ""
+#define set_topic ""
+#define state_topic ""
+
