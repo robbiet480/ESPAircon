@@ -5,12 +5,11 @@
 
 typedef struct {
   bool on;
+  bool oscillate;
   bool timer;
-  bool unitF;
-  int temperature;
   int timer_value;
-  int mode;
-  int fan;
+  int speed;
+  int wind;
 } dl_aircon_msg_t;
 
 unsigned long dl_assemble_msg(dl_aircon_msg_t* msg);

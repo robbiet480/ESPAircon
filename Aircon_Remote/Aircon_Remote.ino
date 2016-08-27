@@ -8,19 +8,14 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-const char* ssid = "************";
-const char* password = "***********";
-
-#define MQTT_SERVER "192.168.x.x"
-#define MQTT_PORT   1883
-#define MQTT_USER   "aircon"
-
 #define IR_PIN 14
 
 #define LED_GREEN 12
 #define LED_BLUE 13
 #define LED_RED 15
 #define BUTTON 4
+
+#include "config.h"
 
 IRsend irsend(IR_PIN); //an IR led is connected to GPIO pin 14
 DynamicJsonBuffer  jsonBuffer;
@@ -30,22 +25,19 @@ bool recv = false;
 unsigned long millis_last = 0;
 
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_PORT, MQTT_USER, "");
+Adafruit_MQTT_Client mqtt(&client, mqtt_server, mqtt_port, mqtt_user, "");
 
-const char ONOFF_FEED[] PROGMEM = MQTT_USER "/set";
-Adafruit_MQTT_Subscribe mq_aircon_set = Adafruit_MQTT_Subscribe(&mqtt, ONOFF_FEED);
-
-const char STATUS_FEED[] PROGMEM = MQTT_USER "/status";
-Adafruit_MQTT_Publish mq_aircon_status = Adafruit_MQTT_Publish(&mqtt, STATUS_FEED);
+Adafruit_MQTT_Subscribe mq_aircon_set = Adafruit_MQTT_Subscribe(&mqtt, set_topic);
+Adafruit_MQTT_Publish mq_aircon_status = Adafruit_MQTT_Publish(&mqtt, state_topic);
 
 void MQTT_connect();
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(112500);  
+  Serial.begin(112500);
   Serial.println("Booting");
-  
-  WiFi.begin(ssid, password);
+
+  WiFi.begin(wifi_ssid, wifi_password);
   Serial.println("");
 
   pinMode(IR_PIN, OUTPUT);
@@ -55,20 +47,19 @@ void setup() {
   pinMode(LED_BLUE, OUTPUT);
 
   pinMode(BUTTON, INPUT_PULLUP);
-  
+
   pinMode(2, OUTPUT);
   digitalWrite(2, HIGH);
-  
+
   //Default settings
   irsend.begin();
   msg.on = false;
-  msg.temperature = 24;
-  msg.unitF = false;
+  msg.oscillate = false;
   msg.timer = false;
   msg.timer_value = 1;
-  msg.mode=8;
-  msg.fan=2;
-  
+  msg.speed = 2;
+  msg.wind = 2;
+
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     digitalWrite(LED_RED, HIGH);
@@ -77,23 +68,23 @@ void setup() {
     delay(400);
     Serial.print(".");
   }
-  
+
   Serial.println("");
   Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.println(wifi_ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  
+
   mqtt.subscribe(&mq_aircon_set);
 
   Serial.println("Go!");
-  
+
   digitalWrite(LED_GREEN, HIGH);
   delay(100);
   digitalWrite(LED_GREEN, LOW);
 }
 
-void loop() {  
+void loop() {
 
   if (millis() - millis_last > 500){
     MQTT_connect();
@@ -104,22 +95,22 @@ void loop() {
         digitalWrite(LED_BLUE, HIGH);
         Serial.println("Got MQTT");
         JsonObject& root = jsonBuffer.parseObject((char*)mq_aircon_set.lastread);
-  
+
         if (!root.success()) {
           Serial.println("parseObject() failed");
           return;
         }
-      
+
         if (root.containsKey("on")) msg.on = root["on"];
-        if (root.containsKey("temperature")) msg.temperature = root["temperature"];
-  
-        if (root.containsKey("mode"))msg.mode = root["mode"];
-        if (root.containsKey("fan")) msg.fan = root["fan"];
-  
-        if (root.containsKey("unitF")) msg.unitF = root["unitF"];
+
+        if (root.containsKey("oscillate")) msg.oscillate = root["oscillate"];
+
+        if (root.containsKey("speed")) msg.speed = root["speed"];
+        if (root.containsKey("wind")) msg.wind = root["wind"];
+
         if (root.containsKey("timer")) msg.timer = root["timer"];
         if (root.containsKey("timer_value")) msg.timer_value = root["timer_value"];
-  
+
         unsigned long data = dl_assemble_msg(&msg);
         irsend.sendNEC(data, 32);
         recv = true;
@@ -128,28 +119,27 @@ void loop() {
 
     millis_last = millis();
   }
-  
-  if (recv){  
+
+  if (recv){
     Serial.println("Answer");
     JsonObject& root = jsonBuffer.createObject();
 
     root["on"] = msg.on;
-    root["temperature"] = msg.temperature;
-    root["mode"] = msg.mode;
-    root["fan"] = msg.fan;
-    root["unitF"] = msg.unitF;
+    root["oscillate"] = msg.oscillate;
+    root["speed"] = msg.speed;
+    root["wind"] = msg.wind;
     root["timer"] = msg.timer;
     root["timer_value"] = msg.timer_value;
 
     //char buf[root.measureLength()];
     char buf[250];
     root.printTo(buf, 250);
-    
+
     mq_aircon_status.publish(buf);
     recv = false;
     digitalWrite(LED_BLUE, LOW);
   }
-  
+
   yield();
 }
 
