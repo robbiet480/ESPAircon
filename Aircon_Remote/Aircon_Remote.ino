@@ -140,11 +140,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   irsend.sendNEC(data, 32);
 
   if (publishing_topic != "" && publishing_payload != "") {
-    Serial.print("Will be publishing to topic ");
-    Serial.print(publishing_topic);
-    Serial.print(" with payload ");
-    Serial.println(publishing_payload);
-
     client.publish(publishing_topic.c_str(), publishing_payload.c_str(), true);
   }
 
@@ -244,8 +239,10 @@ void reconnect() {
 
     // Attempt to connect
     if (client.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, ALIVE_TOPIC, 0, 1, "dead")) {
-      Serial.println("connected");
-      Serial.print("state=");
+      Serial.print("Connected to MQTT Broker (");
+      Serial.print(MQTT_SERVER);
+      Serial.println(")");
+      Serial.print("MQTT connection state: ");
       Serial.println(client.state());
       client.publish(ALIVE_TOPIC, "alive", true);
       client.subscribe(JSON_SET_TOPIC);
@@ -267,7 +264,9 @@ void reconnect() {
 
 void loop() {
   if (!client.connected()) {
-    Serial.println("Disconnected, starting reconnection!");
+    Serial.println("Disconnected from MQTT, starting reconnection!");
+    Serial.print("Current WiFi state is: ");
+    Serial.println(WiFi.status());
     reconnect();
   }
   client.loop();
