@@ -67,12 +67,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     if (root.containsKey("on")) {
       msg.on = root["on"];
-      client.publish(ON_STATE_TOPIC, root["on"]);
+      publish_to_mqtt(ON_STATE_TOPIC, root["on"]);
     }
 
     if (root.containsKey("oscillate")) {
       msg.oscillate = root["oscillate"];
-      client.publish(OSCILLATE_STATE_TOPIC, root["oscillate"]);
+      publish_to_mqtt(OSCILLATE_STATE_TOPIC, root["oscillate"]);
     }
 
     if (root.containsKey("speed")) {
@@ -86,7 +86,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       } else if (speed == "high") {
         msg.speed = 2;
       }
-      client.publish(SPEED_STATE_TOPIC, root["speed"]);
+      publish_to_mqtt(SPEED_STATE_TOPIC, root["speed"]);
     }
   } else if (String(topic) == String(ON_SET_TOPIC)) {
     msg.on = (str_payload == "true");
@@ -148,7 +148,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   if (publishing_topic != "" && publishing_payload != "") {
-    client.publish(publishing_topic.c_str(), publishing_payload.c_str(), true);
+    publish_to_mqtt(publishing_topic.c_str(), publishing_payload.c_str());
   }
 
   JsonObject& publish_root = jsonBuffer.createObject();
@@ -172,7 +172,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   char buf[256];
   publish_root.printTo(buf, sizeof(buf));
 
-  client.publish(JSON_STATE_TOPIC, buf, true);
+  publish_to_mqtt(JSON_STATE_TOPIC, buf);
 }
 
 void setup() {
@@ -231,7 +231,7 @@ void reconnect() {
       Serial.println(")");
       Serial.print("MQTT connection state: ");
       Serial.println(client.state());
-      client.publish(ALIVE_TOPIC, "alive", true);
+      publish_to_mqtt(ALIVE_TOPIC, "alive");
       client.subscribe(JSON_SET_TOPIC);
       client.subscribe(ON_SET_TOPIC);
       client.subscribe(OSCILLATE_SET_TOPIC);
@@ -282,4 +282,10 @@ void send_raw_ir(unsigned int* raw_data) {
   digitalWrite(BLUE_LED, LOW);
   irsend.sendRaw(raw_data, sizeof(raw_data) / sizeof(raw_data[0]), 38);
   digitalWrite(BLUE_LED, HIGH);
+}
+
+void publish_to_mqtt(const char* topic, const char* payload) {
+  digitalWrite(RED_LED, LOW);
+  client.publish(topic, payload, true);
+  digitalWrite(RED_LED, HIGH);
 }
