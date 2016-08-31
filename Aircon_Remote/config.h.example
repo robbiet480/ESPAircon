@@ -17,4 +17,12 @@
 #define SPEED_SET_TOPIC          "esp8266/ac/speed/set"
 #define SPEED_STATE_TOPIC        "esp8266/ac/speed/state"
 
-#define IR_PIN 14
+#define IR_PIN                   14                    // NodeMCU D5
+
+#define RED_LED                  16                    // NodeMCU D0
+#define BLUE_LED                 2                     // NodeMCU D4
+
+#define BRIGHT                   350                   // max led intensity (1-500)
+#define INHALE                   1250                  // Inhalation time in milliseconds.
+#define PULSE                    INHALE*1000/BRIGHT
+#define REST                     1000                  // Rest Between Inhalations.
