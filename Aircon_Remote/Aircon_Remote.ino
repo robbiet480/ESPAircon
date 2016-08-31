@@ -3,6 +3,7 @@
 // Required libraries (sketch -> include library -> manage libraries)
 // - PubSubClient by Nick 'O Leary
 // - IRemoteESP8266
+// - ArduinoJSON
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
@@ -20,7 +21,6 @@ DynamicJsonBuffer  jsonBuffer;
 
 seville_aircon_msg_t msg;
 
-// Callback function header
 void callback(char* topic, byte* payload, unsigned int length);
 
 WiFiClient espClient;
@@ -35,8 +35,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
-
-  setColor(255, 255, 0);
 
   payload[length] = '\0';
   String str_payload = String((char*)payload);
@@ -170,7 +168,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   publish_root.printTo(buf, 250);
 
   client.publish(JSON_STATE_TOPIC, buf, true);
-  setColorByName("off");
 }
 
 void setup() {
@@ -180,10 +177,6 @@ void setup() {
 
   pinMode(IR_PIN, OUTPUT);
 
-  pinMode(RGB_LED_RED, OUTPUT);
-  pinMode(RGB_LED_GREEN, OUTPUT);
-  pinMode(RGB_LED_BLUE, OUTPUT);
-
   unsigned int fan_off[131] = {9400,4800, 600,500, 600,500, 600,550, 600,1600, 600,500, 600,550, 600,500, 550,550, 600,550, 550,550, 600,1600, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,550, 550,1650, 600,1600, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,550, 550,550, 600,500, 600,1600, 600,550, 550,1650, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 550,550, 600,550, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1600, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 550,1650, 550,1650, 550,1650, 550,550, 600,550, 600,500, 600,500, 600};
   irsend.sendRaw(fan_off, sizeof(fan_off) / sizeof(fan_off[0]), 38);
 
@@ -191,9 +184,7 @@ void setup() {
   msg.oscillate = false;
   msg.speed = 0;
 
-  setColor(0, 255, 0);
   delay(500);
-  setColorByName("off");
   setup_wifi();
 }
 
@@ -207,10 +198,7 @@ void setup_wifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
-    setColorByName("red");
     delay(100);
-    setColorByName("off");
-    delay(400);
     Serial.print(".");
   }
 
@@ -219,13 +207,11 @@ void setup_wifi() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  alertColor("blue");
 }
 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    setColorByName("red");
     Serial.print("Attempting MQTT connection...");
     Serial.print("state=");
     Serial.println(client.state());
@@ -242,7 +228,6 @@ void reconnect() {
       client.subscribe(ON_SET_TOPIC);
       client.subscribe(OSCILLATE_SET_TOPIC);
       client.subscribe(SPEED_SET_TOPIC);
-      setColorByName("off");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -261,59 +246,4 @@ void loop() {
     reconnect();
   }
   client.loop();
-}
-
-void setColor(int red, int green, int blue)
-{
-  #ifdef COMMON_ANODE
-    red = 255 - red;
-    green = 255 - green;
-    blue = 255 - blue;
-  #endif
-  analogWrite(RGB_LED_RED, red);
-  analogWrite(RGB_LED_GREEN, green);
-  analogWrite(RGB_LED_BLUE, blue);
-}
-
-void setColorByName(char* colorName)
-{
-  if (colorName == "red") {
-    setColor(255, 0, 0);
-  } else if (colorName == "green") {
-    setColor(0, 255, 0);
-  } else if (colorName == "blue") {
-    setColor(0, 0, 255);
-  } else if (colorName == "yellow") {
-    setColor(255, 255, 0);
-  } else if (colorName == "purple") {
-    setColor(80, 0, 80);
-  } else if (colorName == "aqua") {
-    setColor(0, 255, 255);
-  } else if (colorName == "off") {
-    setColor(0, 0, 0);
-  }
-}
-
-void alertColor(char *colorName)
-{
-  setColorByName(colorName);
-  delay(500);
-  setColorByName("off");
-  delay(500);
-  setColorByName(colorName);
-  delay(500);
-  setColorByName("off");
-  delay(500);
-  setColorByName(colorName);
-  delay(500);
-  setColorByName("off");
-  delay(500);
-  setColorByName(colorName);
-  delay(500);
-  setColorByName("off");
-  delay(500);
-  setColorByName(colorName);
-  delay(500);
-  setColorByName("off");
-  delay(500);
 }

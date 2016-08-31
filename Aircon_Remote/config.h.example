@@ -18,7 +18,3 @@
 #define SPEED_STATE_TOPIC        "esp8266/ac/speed/state"
 
 #define IR_PIN 14
-
-#define LED_GREEN 12
-#define LED_BLUE 13
-#define LED_RED 15
