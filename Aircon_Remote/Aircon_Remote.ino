@@ -189,6 +189,8 @@ void setup() {
 }
 
 void setup_wifi() {
+  // Disable built in access point
+  WiFi.mode(WIFI_STA);
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
