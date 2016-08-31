@@ -9,9 +9,5 @@ typedef struct {
   int speed;
 } seville_aircon_msg_t;
 
-unsigned long seville_assemble_msg(seville_aircon_msg_t* msg);
-// bool seville_decode_msg(seville_aircon_msg_t* msg);
-void seville_print_msg(seville_aircon_msg_t *msg);
-
-
 #endif
+
