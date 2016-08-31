@@ -6,7 +6,7 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include "DL_Aircon.h"
+#include "Seville_Aircon.h"
 #include <IRremoteESP8266.h>
 #include <ArduinoJson.h>
 
@@ -18,7 +18,7 @@ IRsend irsend(IR_PIN);
 
 DynamicJsonBuffer  jsonBuffer;
 
-dl_aircon_msg_t msg;
+seville_aircon_msg_t msg;
 
 // Callback function header
 void callback(char* topic, byte* payload, unsigned int length);
@@ -36,7 +36,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  digitalWrite(LED_BLUE, HIGH);
+  setColor(255, 255, 0);
 
   payload[length] = '\0';
   String str_payload = String((char*)payload);
@@ -63,36 +63,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
 
     if (root.containsKey("speed")) {
-      if (root["speed"] == "eco") {
-        msg.speed = 0;
-      } else if (root["speed"] == "low") {
-        msg.speed = 1;
-      } else if (root["speed"] == "medium") {
-        msg.speed = 2;
-      } else if (root["speed"] == "high") {
+      String speed = String(root["speed"].asString());
+      if (speed == "eco") {
         msg.speed = 3;
+      } else if (speed == "low") {
+        msg.speed = 0;
+      } else if (speed == "medium") {
+        msg.speed = 1;
+      } else if (speed == "high") {
+        msg.speed = 2;
       }
       client.publish(SPEED_STATE_TOPIC, root["speed"]);
-    }
-
-    if (root.containsKey("wind")) {
-      if (root["wind"] == "normal") {
-        msg.wind = 0;
-      } else if (root["wind"] == "natural") {
-        msg.wind = 1;
-      } else if (root["wind"] == "sleeping") {
-        msg.wind = 2;
-      }
-      client.publish(WIND_STATE_TOPIC, root["wind"]);
-    }
-
-    if (root.containsKey("timer")) {
-      msg.timer = root["timer"];
-      client.publish(TIMER_STATE_TOPIC, root["timer"]);
-    }
-    if (root.containsKey("timer_value")) {
-      msg.timer_value = root["timer_value"];
-      client.publish(TIMER_VALUE_STATE_TOPIC, root["timer_value"]);
     }
   } else if (String(topic) == String(ON_SET_TOPIC)) {
     msg.on = (str_payload == "true");
@@ -104,40 +85,63 @@ void callback(char* topic, byte* payload, unsigned int length) {
     publishing_payload = (msg.oscillate ? "true" : "false");
   } else if (String(topic) == String(SPEED_SET_TOPIC)) {
     if (str_payload == "eco") {
-      msg.speed = 0;
-    } else if (str_payload == "low") {
-      msg.speed = 1;
-    } else if (str_payload == "medium") {
-      msg.speed = 2;
-    } else if (str_payload == "high") {
       msg.speed = 3;
+    } else if (str_payload == "low") {
+      msg.speed = 0;
+    } else if (str_payload == "medium") {
+      msg.speed = 1;
+    } else if (str_payload == "high") {
+      msg.speed = 2;
     }
     publishing_topic = SPEED_STATE_TOPIC;
     publishing_payload = String(str_payload).c_str();
-  } else if (String(topic) == String(WIND_SET_TOPIC)) {
-    if (str_payload == "normal") {
-      msg.wind = 0;
-    } else if (str_payload == "natural") {
-      msg.wind = 1;
-    } else if (str_payload == "sleeping") {
-      msg.wind = 2;
-    }
-    publishing_topic = WIND_STATE_TOPIC;
-    publishing_payload = String(str_payload).c_str();
-  } else if (String(topic) == String(TIMER_SET_TOPIC)) {
-    msg.timer = (str_payload == "true");
-    publishing_topic = TIMER_STATE_TOPIC;
-    publishing_payload = (msg.timer ? "true" : "false");
-  } else if (String(topic) == String(TIMER_VALUE_SET_TOPIC)) {
-    msg.timer_value = str_payload.toFloat();
-    publishing_topic = TIMER_VALUE_STATE_TOPIC;
-    publishing_payload = String(msg.timer_value).c_str();
   } else {
     Serial.println("No topic matched!");
   }
 
-  unsigned long data = dl_assemble_msg(&msg);
-  irsend.sendNEC(data, 32);
+  if (msg.on) {
+    if (msg.oscillate) {
+      if (msg.speed == 3) {
+        // On, Oscillate, Eco
+        unsigned int fan_oscillate_eco[131] = {9350,4800, 550,550, 600,550, 550,550, 550,1700, 550,550, 550,550, 550,550, 600,1650, 550,550, 600,500, 600,1600, 600,550, 550,550, 600,550, 550,550, 550,550, 600,550, 600,500, 600,1600, 600,1650, 550,550, 550,550, 600,550, 550,1650, 550,550, 600,1600, 600,550, 600,500, 600,550, 550,550, 550,1650, 550,1650, 600,550, 600,1600, 600,500, 600,1650, 550,550, 600,550, 600,500, 550,550, 600,550, 550,550, 600,500, 600,550, 550,550, 600,550, 550,550, 600,550, 600,550, 550,1650, 550,1700, 550,550, 600,500, 600,500, 600,550, 550,550, 600,550, 550,1650, 600,1600, 550,1650, 600,550, 550,550, 600,1600, 600,1650, 550};
+        irsend.sendRaw(fan_oscillate_eco, sizeof(fan_oscillate_eco) / sizeof(fan_oscillate_eco[0]), 38);
+      } else if (msg.speed == 0) {
+        // On, Oscillate, Low
+        unsigned int fan_oscillate_low[131] = {9350,4800, 550,550, 600,550, 550,550, 550,1650, 600,550, 550,550, 600,500, 600,1650, 550,550, 550,550, 600,1650, 550,550, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,1600, 600,1650, 550,550, 550,550, 600,550, 600,1600, 600,500, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 600,500, 600,1600, 600,500, 600,1650, 550,550, 600,500, 600,550, 550,550, 600,500, 600,550, 550,550, 600,500, 600,550, 550,550, 600,550, 550,550, 600,550, 550,1650, 600,1650, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 550,1650, 600,1600, 600,1650, 600,500, 600,500, 600,550, 600,500, 600};
+        irsend.sendRaw(fan_oscillate_low, sizeof(fan_oscillate_low) / sizeof(fan_oscillate_low[0]), 38);
+      } else if (msg.speed == 1) {
+        // On, Oscillate, Medium
+        unsigned int fan_oscillate_medium[131] = {9350,4800, 550,600, 550,550, 600,500, 600,1650, 550,550, 600,550, 550,550, 550,1650, 600,500, 600,550, 550,1650, 600,500, 600,550, 600,500, 600,550, 550,550, 600,500, 600,550, 550,1650, 600,1600, 600,500, 600,550, 550,550, 600,1650, 550,550, 550,1650, 600,550, 550,550, 600,500, 600,500, 600,550, 550,1650, 550,550, 600,1650, 600,500, 550,1650, 600,550, 600,500, 600,550, 550,550, 600,500, 600,550, 550,550, 550,550, 600,550, 550,550, 600,550, 600,500, 600,550, 550,1650, 600,1650, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,1600, 600,1600, 600,1650, 600,500, 600,550, 550,550, 600,1600, 600};
+        irsend.sendRaw(fan_oscillate_medium, sizeof(fan_oscillate_medium) / sizeof(fan_oscillate_medium[0]), 38);
+      } else if (msg.speed == 2) {
+        // On, Oscillate, High
+        unsigned int fan_oscillate_high[131] = {9350,4750, 600,550, 600,550, 550,500, 600,1650, 600,500, 600,550, 550,550, 600,1600, 600,550, 550,550, 600,1600, 600,550, 600,500, 600,550, 550,550, 600,550, 550,550, 600,500, 600,1600, 600,1600, 600,500, 600,550, 600,550, 550,1600, 600,550, 600,1600, 600,550, 550,550, 600,550, 550,550, 550,1600, 650,500, 600,550, 550,1600, 650,500, 600,1600, 600,500, 600,550, 600,550, 550,550, 600,550, 550,550, 550,550, 600,550, 550,550, 550,550, 600,550, 550,550, 600,550, 600,1600, 600,1600, 600,550, 600,550, 550,550, 600,500, 600,550, 550,550, 600,1600, 600,1600, 600,1600, 600,550, 600,550, 550,1600, 600,550, 600};
+        irsend.sendRaw(fan_oscillate_high, sizeof(fan_oscillate_high) / sizeof(fan_oscillate_high[0]), 38);
+      }
+    } else {
+      if (msg.speed == 3) {
+        // On, Eco
+        unsigned int fan_eco[131] = {9350,4800, 550,550, 550,550, 550,600, 550,1650, 600,500, 550,600, 550,550, 550,1650, 550,550, 550,600, 550,1650, 550,550, 550,550, 600,550, 550,550, 600,550, 550,550, 550,550, 600,1600, 600,1650, 550,550, 600,500, 600,550, 550,550, 550,600, 550,1650, 550,550, 550,550, 600,550, 550,550, 550,1650, 550,1650, 550,600, 550,1650, 600,500, 550,1650, 600,550, 600,500, 550,600, 550,550, 600,550, 550,550, 550,550, 550,600, 550,550, 600,550, 550,550, 600,500, 600,550, 600,1600, 600,1650, 600,500, 600,500, 600,550, 600,500, 600,550, 550,550, 600,1600, 600,1650, 550,1650, 600,500, 550,550, 600,1650, 550,550, 550};
+        irsend.sendRaw(fan_eco, sizeof(fan_eco) / sizeof(fan_eco[0]), 38);
+      } else if (msg.speed == 0) {
+        // On, Low
+        unsigned int fan_low[131] = {9400,4750, 600,500, 600,550, 600,500, 600,1650, 600,500, 600,500, 600,550, 600,1600, 600,550, 550,550, 600,1600, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,550, 550,1650, 600,1600, 600,550, 600,500, 600,500, 600,550, 600,500, 600,1600, 600,500, 600,550, 600,500, 600,500, 600,550, 600,500, 600,550, 600,1600, 600,500, 600,1600, 600,550, 550,550, 600,500, 600,550, 600,500, 600,550, 600,500, 600,500, 650,500, 600,550, 600,500, 600,500, 600,550, 600,1600, 600,1650, 550,550, 600,500, 600,500, 600,550, 600,500, 600,550, 600,1600, 550,1650, 600,1600, 600,500, 650,500, 600,500, 600,1650, 600};
+        irsend.sendRaw(fan_low, sizeof(fan_low) / sizeof(fan_low[0]), 38);
+      } else if (msg.speed == 1) {
+        // On, Medium
+        unsigned int fan_medium[131] = {9350,4750, 600,550, 550,550, 600,550, 550,1700, 550,500, 600,550, 600,500, 600,1600, 600,550, 550,550, 600,1600, 600,550, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 600,1600, 600,1600, 600,550, 600,500, 600,500, 600,550, 550,550, 600,1600, 600,550, 600,500, 600,500, 600,550, 600,500, 600,1600, 600,550, 600,1600, 600,500, 550,1650, 600,550, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 600,500, 600,500, 650,500, 600,550, 600,500, 600,550, 550,1650, 600,1650, 550,550, 550,550, 600,550, 600,500, 600,500, 600,550, 600,1600, 600,1600, 600,1650, 550,550, 600,500, 600,550, 600,500, 550};
+        irsend.sendRaw(fan_medium, sizeof(fan_medium) / sizeof(fan_medium[0]), 38);
+      } else if (msg.speed == 2) {
+        // On, High
+        unsigned int fan_high[131] = {9300,4800, 600,500, 600,550, 600,500, 600,1650, 600,500, 600,500, 600,550, 550,1650, 600,500, 600,550, 600,1600, 600,500, 600,550, 600,500, 600,500, 600,550, 600,500, 600,550, 600,1600, 600,1600, 600,500, 600,550, 600,500, 600,550, 550,550, 600,1600, 600,500, 600,550, 600,500, 600,500, 600,1650, 550,550, 600,500, 600,1600, 600,550, 600,1600, 600,500, 600,550, 600,500, 600,500, 600,550, 600,500, 600,550, 550,550, 600,500, 600,550, 600,550, 600,500, 600,500, 600,1650, 550,1650, 600,550, 600,500, 600,500, 600,550, 600,500, 600,550, 550,1650, 600,1600, 600,1600, 600,550, 600,500, 550,1650, 600,1650, 600};
+        irsend.sendRaw(fan_high, sizeof(fan_high) / sizeof(fan_high[0]), 38);
+      }
+    }
+  } else {
+    // Off
+    unsigned int fan_off[131] = {9400,4800, 600,500, 600,500, 600,550, 600,1600, 600,500, 600,550, 600,500, 550,550, 600,550, 550,550, 600,1600, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,550, 550,1650, 600,1600, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,550, 550,550, 600,500, 600,1600, 600,550, 550,1650, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 550,550, 600,550, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1600, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 550,1650, 550,1650, 550,1650, 550,550, 600,550, 600,500, 600,500, 600};
+    irsend.sendRaw(fan_off, sizeof(fan_off) / sizeof(fan_off[0]), 38);
+  }
 
   if (publishing_topic != "" && publishing_payload != "") {
     client.publish(publishing_topic.c_str(), publishing_payload.c_str(), true);
@@ -150,61 +154,47 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   String human_speed = "";
 
-  if (msg.speed = 0) {
+  if (msg.speed == 0) {
     human_speed = "eco";
-  } else if (msg.speed = 1) {
+  } else if (msg.speed == 1) {
     human_speed = "low";
-  } else if (msg.speed = 2) {
+  } else if (msg.speed == 2) {
     human_speed = "medium";
-  } else if (msg.speed = 3) {
+  } else if (msg.speed == 3) {
     human_speed = "high";
   }
   publish_root["speed"] = human_speed;
-
-  String human_wind = "";
-
-  if (msg.wind = 0) {
-    human_wind = "normal";
-  } else if (msg.wind = 1) {
-    human_wind = "natural";
-  } else if (msg.wind = 2) {
-    human_wind = "sleeping";
-  }
-
-  publish_root["wind"] = human_wind;
-  publish_root["timer"] = msg.timer;
-  publish_root["timer_value"] = msg.timer_value;
 
   //char buf[publish_root.measureLength()];
   char buf[250];
   publish_root.printTo(buf, 250);
 
   client.publish(JSON_STATE_TOPIC, buf, true);
-  digitalWrite(LED_BLUE, LOW);
+  setColorByName("off");
 }
 
 void setup() {
   irsend.begin();
   Serial.begin(115200);
   Serial.println("Booting");
-  setup_wifi();
 
   pinMode(IR_PIN, OUTPUT);
 
-  pinMode(LED_GREEN, OUTPUT);
-  pinMode(LED_RED, OUTPUT);
-  pinMode(LED_BLUE, OUTPUT);
+  pinMode(RGB_LED_RED, OUTPUT);
+  pinMode(RGB_LED_GREEN, OUTPUT);
+  pinMode(RGB_LED_BLUE, OUTPUT);
+
+  unsigned int fan_off[131] = {9400,4800, 600,500, 600,500, 600,550, 600,1600, 600,500, 600,550, 600,500, 550,550, 600,550, 550,550, 600,1600, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 600,550, 550,1650, 600,1600, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,550, 550,550, 600,500, 600,1600, 600,550, 550,1650, 600,500, 600,550, 550,550, 600,500, 600,550, 600,500, 550,550, 600,550, 600,500, 550,550, 600,550, 600,500, 600,500, 600,1600, 600,1650, 550,550, 600,500, 600,550, 600,500, 600,500, 600,550, 550,1650, 550,1650, 550,1650, 550,550, 600,550, 600,500, 600,500, 600};
+  irsend.sendRaw(fan_off, sizeof(fan_off) / sizeof(fan_off[0]), 38);
 
   msg.on = false;
   msg.oscillate = false;
-  msg.timer = false;
-  msg.timer_value = 0.5;
-  msg.speed = 2;
-  msg.wind = 0;
+  msg.speed = 0;
 
-  digitalWrite(LED_GREEN, HIGH);
-  delay(100);
-  digitalWrite(LED_GREEN, LOW);
+  setColor(0, 255, 0);
+  delay(500);
+  setColorByName("off");
+  setup_wifi();
 }
 
 void setup_wifi() {
@@ -217,9 +207,9 @@ void setup_wifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(LED_RED, HIGH);
+    setColorByName("red");
     delay(100);
-    digitalWrite(LED_RED, LOW);
+    setColorByName("off");
     delay(400);
     Serial.print(".");
   }
@@ -228,11 +218,14 @@ void setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  alertColor("blue");
 }
 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
+    setColorByName("red");
     Serial.print("Attempting MQTT connection...");
     Serial.print("state=");
     Serial.println(client.state());
@@ -249,9 +242,7 @@ void reconnect() {
       client.subscribe(ON_SET_TOPIC);
       client.subscribe(OSCILLATE_SET_TOPIC);
       client.subscribe(SPEED_SET_TOPIC);
-      client.subscribe(WIND_SET_TOPIC);
-      client.subscribe(TIMER_SET_TOPIC);
-      client.subscribe(TIMER_VALUE_SET_TOPIC);
+      setColorByName("off");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -270,4 +261,59 @@ void loop() {
     reconnect();
   }
   client.loop();
+}
+
+void setColor(int red, int green, int blue)
+{
+  #ifdef COMMON_ANODE
+    red = 255 - red;
+    green = 255 - green;
+    blue = 255 - blue;
+  #endif
+  analogWrite(RGB_LED_RED, red);
+  analogWrite(RGB_LED_GREEN, green);
+  analogWrite(RGB_LED_BLUE, blue);
+}
+
+void setColorByName(char* colorName)
+{
+  if (colorName == "red") {
+    setColor(255, 0, 0);
+  } else if (colorName == "green") {
+    setColor(0, 255, 0);
+  } else if (colorName == "blue") {
+    setColor(0, 0, 255);
+  } else if (colorName == "yellow") {
+    setColor(255, 255, 0);
+  } else if (colorName == "purple") {
+    setColor(80, 0, 80);
+  } else if (colorName == "aqua") {
+    setColor(0, 255, 255);
+  } else if (colorName == "off") {
+    setColor(0, 0, 0);
+  }
+}
+
+void alertColor(char *colorName)
+{
+  setColorByName(colorName);
+  delay(500);
+  setColorByName("off");
+  delay(500);
+  setColorByName(colorName);
+  delay(500);
+  setColorByName("off");
+  delay(500);
+  setColorByName(colorName);
+  delay(500);
+  setColorByName("off");
+  delay(500);
+  setColorByName(colorName);
+  delay(500);
+  setColorByName("off");
+  delay(500);
+  setColorByName(colorName);
+  delay(500);
+  setColorByName("off");
+  delay(500);
 }

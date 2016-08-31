@@ -16,12 +16,6 @@
 #define OSCILLATE_STATE_TOPIC    "esp8266/ac/oscillate/state"
 #define SPEED_SET_TOPIC          "esp8266/ac/speed/set"
 #define SPEED_STATE_TOPIC        "esp8266/ac/speed/state"
-#define WIND_SET_TOPIC           "esp8266/ac/wind/set"
-#define WIND_STATE_TOPIC         "esp8266/ac/wind/state"
-#define TIMER_SET_TOPIC          "esp8266/ac/timer/set"
-#define TIMER_STATE_TOPIC        "esp8266/ac/timer/state"
-#define TIMER_VALUE_SET_TOPIC    "esp8266/ac/timer_value/set"
-#define TIMER_VALUE_STATE_TOPIC  "esp8266/ac/timer_value/state"
 
 #define IR_PIN 14
 
